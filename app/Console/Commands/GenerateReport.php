@@ -37,8 +37,8 @@ class GenerateReport extends Command
      */
     public function handle()
     {
-        $this->info('Please enter the following:');
-        $student_id = $this->ask('Student ID:');
+       // $this->info('Please enter the following');
+        $student_id = $this->ask('Student ID');
 
         if($student_id !== FALSE){
             $student_json = array_filter(json_decode(file_get_contents('./data/students.json'),true));
@@ -46,7 +46,7 @@ class GenerateReport extends Command
             $student_data = collect($student_json)->where("id","=",$student_id)->all();
             if(!empty($student_data)){
                 //get choice for reprts
-                $choice = $this->choice('Report to generate (1 for Diagnostic, 2 for Progress, 3 for Feedback):',[1,2,3],1,
+                $choice = $this->choice('Report to generate (1 for Diagnostic, 2 for Progress, 3 for Feedback)',[1,2,3],1,
                 $maxAttempts = null,
                 $allowMultipleSelections = false);
               
