@@ -41,12 +41,16 @@ class GenerateReport extends Command
         $student_id = $this->ask('Student ID:');
 
         if($student_id !== FALSE){
-            $choice = $this->choice('Report to generate (1 for Diagnostic, 2 for Progress, 3 for Feedback):',[1,2,3], 1);
             $student_json = array_filter(json_decode(file_get_contents('./data/students.json'),true));
-            $student_data = collect($student_json)->where("id","=",$student_id)->all();
-
             $student_response_json = array_filter(json_decode(file_get_contents('./data/student-responses.json'),true));
-            $latest_student_response = collect($student_response_json)->where("student.id","=",$student_id)->sortByDesc('completed')->first();
+            $student_data = collect($student_json)->where("id","=",$student_id)->all();
+            if(!empty($student_data)){
+                //get choice for reprts
+                $choice = $this->choice('Report to generate (1 for Diagnostic, 2 for Progress, 3 for Feedback):',[1,2,3],1,
+                $maxAttempts = null,
+                $allowMultipleSelections = false);
+              
+                $latest_student_response = collect($student_response_json)->where("student.id","=",$student_id)->sortByDesc('completed')->first();
        
         
             $f_name = $student_data[0]['firstName'];
@@ -76,23 +80,25 @@ class GenerateReport extends Command
                 if(count($statistics_question) > 0){ $statistics_count ++; };
             }
           
+            //Diagnostic report
             if($choice === 1){
                
-                $this->info($f_name.' '.$l_name.' recently completed Numeracy assessment on '.$last_assesment_date.'
-                He got '.$correct_answers_count.' questions right out of '.$total_question.'. Details by strand given below:
-                Numeracy and Algebra: '.$numeracy_count.' out of '.$numeracy_total.' correct
-                Measurement and Geometry: '.$geometry_count.' out of '.$geometry_total.' correct
-                Statistics and Probability: '.$statistics_count.' out of '.$statistics_total.' correct');
+                $this->info($f_name.' '.$l_name.' recently completed Numeracy assessment on '.date("j\T\H F Y g:i a", strtotime(str_replace('/', '-', $last_assesment_date)))."\n".
+                'He got '.$correct_answers_count.' questions right out of '.$total_question.'. Details by strand given below:'."\n\n".
+                'Numeracy and Algebra: '.$numeracy_count.' out of '.$numeracy_total.' correct'."\n".
+                'Measurement and Geometry: '.$geometry_count.' out of '.$geometry_total.' correct'."\n".
+                'Statistics and Probability: '.$statistics_count.' out of '.$statistics_total.' correct');
 
             }
             $total_numeracy_test = count(collect($student_response_json)->where("student.id","=",$student_id));
+            //Progress report
             if($choice === 2){
                 $student_response = collect($student_response_json)->where("student.id","=",$student_id)->all();; 
-                $this->info($f_name.' '.$l_name.' has completed Numeracy assessment '.$total_numeracy_test.' times in total. Date and raw score given below:');
+                $this->info($f_name.' '.$l_name.' has completed Numeracy assessment '.$total_numeracy_test.' times in total. Date and raw score given below:'."\n");
         
                 foreach($student_response as $response_key => $response_row){
                     if(isset($response_row['completed'])){
-                        $this->info('Date: '.$response_row['completed'].', Raw Score: '.$response_row['results']['rawScore'].' out of '.$total_question);
+                        $this->info('Date: '.date("j\T\H F Y g:i a", strtotime(str_replace('/', '-', $response_row['completed']))).', Raw Score: '.$response_row['results']['rawScore'].' out of '.$total_question);
                     }                
                     
                   }
@@ -101,12 +107,13 @@ class GenerateReport extends Command
                 $first_student_response = collect($student_response_json)->where("student.id","=",$student_id)->sortByDesc('completed')->last();
                 $first_raw_score = $first_student_response['results']['rawScore'];
                 $difference_in_score = $latest_raw_score-$first_raw_score; 
-                $this->info('Tony Stark got '.$difference_in_score.' more correct in the recent completed assessment than the oldest');
+                $this->info("\n".'Tony Stark got '.$difference_in_score.' more correct in the recent completed assessment than the oldest');
             }
 
+            //Feedback report
             if($choice === 3){
-                $this->info($f_name.' '.$l_name.' recently completed Numeracy assessment on '.$last_assesment_date.'
-                He got '.$correct_answers_count.' questions right out of '.$total_question.'. Feedback for wrong answers given below');
+                $this->info($f_name.' '.$l_name.' recently completed Numeracy assessment on '.date("j\T\H F Y g:i a", strtotime(str_replace('/', '-', $last_assesment_date)))."\n".
+                'He got '.$correct_answers_count.' questions right out of '.$total_question.' Feedback for wrong answers given below'."\n");
                 $wrong_question_array=[];
                 foreach($latest_student_response['responses'] as $res){
                     $question = collect($questions_json)->where('id','=',$res['questionId']);                           
@@ -114,17 +121,16 @@ class GenerateReport extends Command
                        foreach($question as $ques_row){
                            //if wrong question
                             if($ques_row['config']['key'] != $res['response']){
-                                $this->info($ques_row['stem']);
+                                $this->info('Question: '.$ques_row['stem']);
                                 //find key of your answer option 
-                                if(($pos = array_search($res['response'], array_column($ques_row['config']['options'], 'id'), true))!== false){
+                                if(($your_ans_pos = array_search($res['response'], array_column($ques_row['config']['options'], 'id'), true))!== false){
                                     $this->info('Your answer: ');
-                                    $this->info($ques_row['config']['options'][$pos]['label'].' with value '.$ques_row['config']['options'][$pos]['value']);
+                                    $this->info($ques_row['config']['options'][$your_ans_pos]['label'].' with value '.$ques_row['config']['options'][$your_ans_pos]['value']);
                                 }
-                                if(($pos = array_search($res['response'], array_column($ques_row['config']['options'], 'id'), true))!== false){    
-               
-                                   $this->info('Right answer: B with value 9
-                                    Hint: You must first arrange the numbers in ascending order. The median is the middle term, which in this case is 9
-                                    ');
+                                //find key of right answer option 
+                                if(($right_ans_pos = array_search($ques_row['config']['key'], array_column($ques_row['config']['options'], 'id'), true))!== false){     
+                                    $this->info($ques_row['config']['options'][$right_ans_pos]['label'].' with value '.$ques_row['config']['options'][$right_ans_pos]['value']."\n".
+                                    'Hint: '.$ques_row['config']['hint']);
                                 }  
                             }
                         }
@@ -135,10 +141,13 @@ class GenerateReport extends Command
                        }
                  
                 }
+            }else{
+                $this->error("invalid student ID");
+            }
             
 
         }else{
-            $this->info("empty student ID");;
+            $this->error("empty student ID");
         }
     }
 }
