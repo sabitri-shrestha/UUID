@@ -50,20 +50,33 @@ class GenerateReport extends Command
        
             $questions_json = array_filter(json_decode(file_get_contents('./data/questions.json'),true));
             $total_question = count(collect($questions_json));
+            $numeracy_total = count(collect($questions_json)->where('strand','=','Number and Algebra'));
+            $geometry_total = count(collect($questions_json)->where('strand','=','Measurement and Geometry'));
+            $statistics_total = count(collect($questions_json)->where('strand','=','Statistics and Probability'));
+            
             $correct_answers_count = 0;
+            $numeracy_count = 0;
+            $geometry_count = 0;
+            $statistics_count = 0;
             foreach($latest_student_response['responses'] as $res){
                 $question = collect($questions_json)->where('id','=',$res['questionId'])->where('config.key','=',$res['response']);
+                $numeracy_question = collect($questions_json)->where('id','=',$res['questionId'])->where('config.key','=',$res['response'])->where('strand','=','Number and Algebra');
+                $geometry_question = collect($questions_json)->where('id','=',$res['questionId'])->where('config.key','=',$res['response'])->where('strand','=','Measurement and Geometry');
+                $statistics_question = collect($questions_json)->where('id','=',$res['questionId'])->where('config.key','=',$res['response'])->where('strand','=','Statistics and Probability');
                 if(count($question) > 0){ $correct_answers_count++; };
+                if(count($numeracy_question) > 0){ $numeracy_count++; };
+                if(count($geometry_question) > 0){ $geometry_count++; };
+                if(count($statistics_question) > 0){ $statistics_count ++; };
             }
             if($choice == 1){
                 $f_name = $student_data[0]['firstName'];
                 $l_name =  $student_data[0]['lastName'];
                 $last_assesment_date = $latest_student_response['completed'];
-                $this->info($f_name.' '.$l_name.' recently completed Numeracy assessment on '.$last_assesment_date.'
+                $this->info($f_name.'a '.$l_name.' recently completed Numeracy assessment on '.$last_assesment_date.'
                 He got '.$correct_answers_count.' questions right out of '.$total_question.'. Details by strand given below:
-                Numeracy and Algebra: 5 out of 5 correct
-                Measurement and Geometry: 7 out of 7 correct
-                Statistics and Probability: 3 out of 4 correct');
+                Numeracy and Algebra: '.$numeracy_count.' out of '.$numeracy_total.' correct
+                Measurement and Geometry: '.$geometry_count.' out of '.$geometry_total.' correct
+                Statistics and Probability: '.$statistics_count.' out of '.$statistics_total.' correct');
 
             }
             
